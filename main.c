@@ -67,7 +67,50 @@ volatile uint8_t current_status = STATUS_PARTOPEN;
 volatile bool send_status = false;
 
 volatile bool led_active;
-char output[16];
+char output[15];
+
+// The value recorded by the 8-cycle ADC mean of the ground
+const int16_t ground_offset = 1979;
+
+// The relationship between ADC units and volts
+const float gain = 0.01712;
+
+volatile int16_t voltage = 0;
+
+void measure_voltage(void)
+{
+    uint8_t msb, lsb;
+    uint16_t sum = 0;
+
+    // Constantly loop reading values from SPI
+    // Average 16 values to measure voltage
+    for (uint8_t i = 0; i < 16; i++)
+    {
+        PORTB &= ~_BV(PB0);
+
+        // Read two bytes of data then assemble them into a 16 bit
+        // number following Figure 6-1 from the MCP3201 data sheets
+        SPDR = 0x00;
+        loop_until_bit_is_set(SPSR, SPIF);
+        msb = SPDR;
+
+        SPDR = 0x00;
+        loop_until_bit_is_set(SPSR, SPIF);
+        lsb = SPDR;
+
+        PORTB |= _BV(PB0);
+
+        // Extract 12 bit value following the bit pattern described in
+        // Figure 6-1 from the MCP3201 data sheet and add to the average
+        sum += (((msb & 0x1F) << 8) | lsb) >> 1;
+    }
+
+    // Divide by 16 to complete the average and subtract the zero offset
+    // Disable interrupts while updating to ensure data consistency
+    cli();
+    voltage = (int16_t)(sum >> 4) - ground_offset;
+    sei();
+}
 
 void poll_usb(void)
 {
@@ -135,7 +178,6 @@ void poll_usb(void)
                 if (!heartbeat_triggered && value <= 240)
                     heartbeat_seconds_remaining = value;
         }
-
     }
 
     if (send_status)
@@ -143,10 +185,10 @@ void poll_usb(void)
         // Send current status back to the host computer
         // Disable interrupts while updating to ensure data consistency
         cli();
-        snprintf(output, 16, "%01d,%03d,%03d,%03d\r\n", current_status, heartbeat_seconds_remaining, open_seconds_remaining, close_seconds_remaining);
+        snprintf(output, 15, "%01d,%03d,%+06.2f\r\n", current_status, heartbeat_seconds_remaining, voltage * gain);
         sei();
 
-        usb_write_data(output, 15);
+        usb_write_data(output, 14);
         send_status = false;
     }
 }
@@ -169,9 +211,19 @@ int main(void)
 
     usb_initialize();
 
+    // Set SS, SCK as output
+    DDRB = _BV(DDB0) | _BV(DDB1);
+ 
+    // Enable SPI Master @ 250kHz, transmit MSB first
+    // Clock idle level is low, sample on falling edge
+    SPCR = _BV(SPE) | _BV(MSTR) | _BV(SPR1) | _BV(CPHA);
+
     sei();
     for (;;)
+    {
+        measure_voltage();
         poll_usb();
+    }
 }
 
 ISR(TIMER1_COMPA_vect)

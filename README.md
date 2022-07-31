@@ -27,13 +27,13 @@ Requires a working `avr-gcc` installation.
 * On Ubuntu install the `gcc-avr`, `avr-libc`, `binutils-avr`, `avrdude` packages.
 * On Windows WinAVR should work.
 
-Compile using `make`. Press the reset button on the Arduino to reboot into the bootloader and run `make install` in the first couple of seconds (while the LED is fading in and out rather thank blinking).
+Compile using `make`. Press the reset button on the Arduino once or twice (depending on bootloader version) to reboot into the bootloader and run `make install` in the first couple of seconds (while the LED is fading in and out rather thank blinking).
 
 ### Software Protocol
 
 Connect to USB port, 9600 8N1 Bps/Par/Bits, no hardware or software flow control.
 
-The unit will passively report its status once per second, in the form `S,HHH,OOO,CCC\r\n`
+The unit will passively report its status once per second, in the form `S,HHH,+VV.VV\r\n`
 
 * `S` is a status byte:
    | Value | Meaning                                                                 |
@@ -47,10 +47,7 @@ The unit will passively report its status once per second, in the form `S,HHH,OO
    | 6     | Force Closed (Closed limit switch is triggered, heartbeat timed out)    |
 
 * `HHH` is the number of seconds (0-240) remaining until the heartbeat times out and force-closes the roof.
-* `OOO` is the number of seconds (0-`MAX_OPEN_SECONDS`) remaining until the roof open relay will be deactivated.
-* `CCC` is the number of seconds (0-`MAX_CLOSE_SECONDS`/`MAX_AUX_CLOSE_SECONDS`) remaining until the roof close relay will be deactivated.
-
-`MAX_OPEN_SECONDS`, `MAX_CLOSE_SECONDS`, `MAX_AUX_CLOSE_SECONDS` are defined in the Makefile, and should be set to a couple of seconds longer than the measured open/close times. In practice, the roof will stop moving as soon as the limit switches are activated; these maximums are in place to reduce damage if a limit switch were to fail.
+* `+VV.VV` is the voltage (positive or negative) of the roof battery.
 
 The unit can be controlled by sending a single status byte:
 
