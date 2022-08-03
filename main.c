@@ -170,6 +170,7 @@ void poll_usb(void)
                 heartbeat_triggered = false;
                 close_seconds_remaining = 0;
                 heartbeat_seconds_remaining = 0;
+                break;
 
             // Reset the heartbeat timer
             default:
