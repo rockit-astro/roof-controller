@@ -46,8 +46,6 @@
 #define STATUS_OPEN 2
 #define STATUS_CLOSING 3
 #define STATUS_OPENING 4
-#define STATUS_FORCE_CLOSING 5
-#define STATUS_FORCE_CLOSED 6
 
 // Number of seconds remaining until triggering the force-close
 volatile uint8_t heartbeat_seconds_remaining = 0;
@@ -186,7 +184,8 @@ void poll_usb(void)
         // Send current status back to the host computer
         // Disable interrupts while updating to ensure data consistency
         cli();
-        snprintf(output, 15, "%01d,%03d,%+06.2f\r\n", current_status, heartbeat_seconds_remaining, voltage * gain);
+        uint8_t heartbeat = heartbeat_triggered ? 0xFF : heartbeat_seconds_remaining;
+        snprintf(output, 15, "%01d,%03d,%+06.2f\r\n", current_status, heartbeat, voltage * gain);
         sei();
 
         usb_write_data(output, 14);
@@ -263,7 +262,7 @@ ISR(TIMER1_COMPA_vect)
         {
             CLOSE_DISABLED;
             AUXMOTOR_DISABLED;
-            status = heartbeat_triggered ? STATUS_FORCE_CLOSED : STATUS_CLOSED;
+            status = STATUS_CLOSED;
             close_seconds_remaining = 0;
             close_using_auxmotor = false;
         }
@@ -280,7 +279,7 @@ ISR(TIMER1_COMPA_vect)
             if (close_using_auxmotor)
                 AUXMOTOR_ENABLED;
 
-            status = heartbeat_triggered ? STATUS_FORCE_CLOSING : STATUS_CLOSING;
+            status = STATUS_CLOSING;
             if (--close_seconds_remaining == 0)
             {
                 CLOSE_DISABLED;

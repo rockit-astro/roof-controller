@@ -43,10 +43,8 @@ The unit will passively report its status once per second, in the form `S,HHH,+V
    | 2     | Open (Opened limit switch is triggered)                                 |
    | 3     | Closing (Close relay is activated)                                      |
    | 4     | Opening (Open relay is activated)                                       |
-   | 5     | Force Closing (Close relay is activated due to heartbeat timeout)       |
-   | 6     | Force Closed (Closed limit switch is triggered, heartbeat timed out)    |
 
-* `HHH` is the number of seconds (0-240) remaining until the heartbeat times out and force-closes the roof.
+* `HHH` is either `0x00` (heartbeat disabled), `0xFF` (heartbeat timed out), or the number of seconds (0-240) remaining until the heartbeat times out and force-closes the roof
 * `+VV.VV` is the voltage (positive or negative) of the roof battery.
 
 The unit can be controlled by sending a single status byte:
